@@ -4,8 +4,8 @@ import time, requests # type: ignore
 
 # change these to suit your environment
 API_ENDPOINT="http://192.168.2.200:9000"
-API_USER="kpirnie"
-API_PASS="!O@62oo4tiny"
+API_USER=""
+API_PASS=""
 
 # the class
 class StreamAPI:
