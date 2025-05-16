@@ -384,14 +384,14 @@ if __name__ == "__main__":
 
     # give it a shot
     try:
+        # if config.json is present, load credentials from this file
         config_file = 'config.json'
         if os.path.exists(config_file):
             with open(config_file) as f:
                 config = json.load(f)
-
-        API_ENDPOINT = config['API_ENDPOINT']
-        API_USER = config['API_USER']
-        API_PASS = config['API_PASS']
+            API_ENDPOINT = config['API_ENDPOINT']
+            API_USER = config['API_USER']
+            API_PASS = config['API_PASS']
 
         # fire up the class
         api = StreamAPI( API_ENDPOINT, API_USER, API_PASS )
