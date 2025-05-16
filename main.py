@@ -1,6 +1,8 @@
 from functools import lru_cache
 from collections import defaultdict
 import time, requests # type: ignore
+import json
+import os
 
 # change these to suit your environment
 API_ENDPOINT="http://192.168.2.200:9000"
@@ -382,6 +384,14 @@ if __name__ == "__main__":
 
     # give it a shot
     try:
+        config_file = 'config.json'
+        if os.path.exists(config_file):
+            with open(config_file) as f:
+                config = json.load(f)
+
+        API_ENDPOINT = config['API_ENDPOINT']
+        API_USER = config['API_USER']
+        API_PASS = config['API_PASS']
 
         # fire up the class
         api = StreamAPI( API_ENDPOINT, API_USER, API_PASS )
