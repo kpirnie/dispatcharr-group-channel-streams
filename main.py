@@ -169,6 +169,7 @@ class StreamAPI:
             # force the exception
             self._exception( e, error_msg )
 
+    # get the existing channels if there are any
     def _get_channels(self):
 
         # give it a shot
@@ -212,7 +213,7 @@ class StreamAPI:
 
             # grab all our channels
             print( "Fetching channels..." )
-            channels = self.get_channels( )
+            channels = self._get_channels( )
             print( f"Found {len(channels)} channels" )
 
             # setup the channel groups
@@ -271,8 +272,8 @@ class StreamAPI:
                             json={
                                 'name': channel_name,
                                 'streams': [stream['id'] for stream in streams],
-                                'tvg_id': streams[0].get( 'tvg_id' ), # using get here ensures that it will not kill the process if there's no data
-                                'channel_group_id': streams[0].get( 'channel_group' ) # using get here ensures that it will not kill the process if there's no data
+                                'tvg_id': next( ( s['tvg_id'] for s in streams if s.get( 'tvg_id' ) not in [None, ''] ), None ),
+                                'channel_group_id': next( ( s['channel_group'] for s in streams if s.get( 'channel_group' ) not in [None, ''] ), None )
                             },
                             headers=self.auth_headers,
                             timeout=30 # seconds
@@ -305,28 +306,54 @@ class StreamAPI:
                 # give this a shot
                 try:
 
-                    # setup the response for creating the data
-                    response = requests.post(
-                        f"{self.base_url}/api/channels/channels/",
-                        json={
-                            'name': channel_name,
-                            'streams': [stream['id'] for stream in streams],
-                            'tvg_id': streams[0].get( 'tvg_id' ), # using get here ensures that it will not kill the process if there's no data
-                            'channel_group_id': streams[0].get( 'channel_group' ) # using get here ensures that it will not kill the process if there's no data
-                        },
-                        headers=self.auth_headers,
-                        timeout=30 # seconds
-                    )
+                    # hold the initial stream ID
+                    _stream_id = next( ( s['id'] for s in streams if s.get( 'id' ) not in [None, ''] ), None )
 
+                    # make sure we've got a stream ID.  really can't create a channel without it
+                    if _stream_id:
 
-                    # make sure we're raising an exception if an HTTP 4xx/5xx ocurrs
-                    response.raise_for_status()
+                        # create the channel from the initial stream
+                        response = requests.post(
+                            f"{self.base_url}/api/channels/channels/from-stream/",
+                            json={
+                                'name': channel_name,
+                                'stream_id': _stream_id
+                            },
+                            headers=self.auth_headers,
+                            timeout=30 # seconds
+                        )
+
+                        # make sure we're raising an exception if an HTTP 4xx/5xx ocurrs
+                        response.raise_for_status( )
+
+                        # hold the response
+                        _resp = response.json( )
+
+                        # hold the channel id
+                        _chan_id = _resp.get( 'id' )
+
+                        # update the channel with all streams except the one we added the channel with
+                        requests.put(
+                            f"{self.base_url}/api/channels/channels/{_chan_id}/",
+                            json={
+                                'name': channel_name,
+                                'streams': [stream['id'] for stream in streams],
+                                'tvg_id': next( ( s['tvg_id'] for s in streams if s.get( 'tvg_id' ) not in [None, ''] ), None ),
+                                'channel_group_id': next( ( s['channel_group'] for s in streams if s.get( 'channel_group' ) not in [None, ''] ), None )
+                            },
+                            headers=self.auth_headers,
+                            timeout=30 # seconds
+                        )
+
+                        # append the response to the results and show a message
+                        results.append( _resp )
+                        print( f"Created channel: {channel_name}" )
+                        print( f"{len(streams)} Streams" )
+
+                    # otherwise, show that it chould not be created
+                    else:
+                        print( f"Could Not Create Channel: {channel_name}" )
                     
-                    # append the response to the results and show a message
-                    results.append( response.json( ) )
-                    print( f"Created channel: {channel_name}" )
-                    print( f"{len(streams)} Streams" )
-                
                 # whoopsie...
                 except requests.exceptions.RequestException as e:
 
