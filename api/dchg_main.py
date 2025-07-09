@@ -4,6 +4,7 @@ import time
 import requests
 from typing import Dict, List, Optional, Any, DefaultDict
 from utils.exceptions import APIException
+import re
 
 # this is the main class
 class DCHG_Main:
@@ -140,7 +141,7 @@ class DCHG_Main:
             print( "Waiting for M3U refresh to complete..." )
             time.sleep( 10 )
             print( "M3U refresh complete, fetching streams..." )
-            
+
         # give it a shot
         try:
 
@@ -191,6 +192,23 @@ class DCHG_Main:
         except requests.exceptions.RequestException as e:
             self._exception( e, "Failed to fetch channels" )
 
+    # normalize channel names
+    def _normalize_channel_name(self, name: str) -> str:
+
+        # make sure the normalizer argument is a valid regex string
+        try:
+            # Test if the pattern compiles (this checks if it's a valid regex)
+            compiled = re.compile( self.normalizer )
+            
+            # If it compiles, perform the replacement
+            return compiled.sub( "", name )
+        
+        # whoops...
+        except re.error:
+
+            # If it's not a valid regex, return the original text
+            return name
+
     # group and sort the streams
     def _group_and_sort_streams( self, streams: List[Dict[str, Any]] ) -> Dict[str, List[Dict[str, Any]]]:
         
@@ -203,11 +221,14 @@ class DCHG_Main:
             # make sure we've got all the data we need
             if not isinstance( stream, dict ) or 'id' not in stream or 'name' not in stream:
                 continue
+
+            # normalize the stream name
+            stream_name = self._normalize_channel_name( stream['name'] )
                 
             # setup the grouped channels streams
-            channel_groups[stream['name']].append( {
+            channel_groups[stream_name].append( {
                 'id': stream['id'],
-                'logo_url': stream.get( 'logo_url', 'https://cdn.kevp.us/kp/kevinpirnie-favicon-initials.svg' ),
+                'logo_url': stream.get( 'logo_url', 'https://cdn.kevp.us/tv/kptv-icon.png' ),
                 'tvg_id': stream.get( 'tvg_id' ),
                 'channel_group': stream.get( 'channel_group' ),
                 'm3u_account': stream.get( 'm3u_account' ),
