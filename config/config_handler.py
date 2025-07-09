@@ -4,7 +4,7 @@ from typing import Tuple, Optional
 from getpass import getpass
 
 # global for the config file
-CONFIG_FILE = ".dgcs_conf"
+CONFIG_FILE = "/home/.dgcs_conf"
 
 # read the config file
 def read_config( ) -> Tuple[str, str, str, str]:
@@ -14,7 +14,7 @@ def read_config( ) -> Tuple[str, str, str, str]:
 
     # if the file does not exist, return none
     if not os.path.exists( CONFIG_FILE ):
-        return None, None, None
+        return None, None, None, None
     
     # read the file
     config.read( CONFIG_FILE )
