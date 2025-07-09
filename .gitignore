@@ -35,6 +35,7 @@ Thumbs.db
 *.sql
 *.sqlite
 *.db
+.dgcs_conf
 
 # Temporary files
 *~

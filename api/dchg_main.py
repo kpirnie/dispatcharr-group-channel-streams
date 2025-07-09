@@ -9,12 +9,14 @@ from utils.exceptions import APIException
 class DCHG_Main:
 
     # fire it up!
-    def __init__(self, base_url: str, username: str, password: str):
+    def __init__(self, base_url: str, username: str, password: str, normalizer: str, refresh: bool = False):
         
         # setup the internals
         self.base_url = base_url.rstrip( '/' )
         self.username = username
         self.password = password
+        self.normalizer = normalizer
+        self.refresh = refresh
         self._auth_headers: Optional[Dict[str, str]] = None
         self.max_retries = 3
         self.retry_delay = 5  # seconds
@@ -127,9 +129,18 @@ class DCHG_Main:
     # get all the streams
     def _get_streams( self ) -> List[Dict[str, Any]]:
         
-        # trigger a M3U account refresh first
-        self._trigger_refresh( )
+        # if we're set to refresh, let's do that first
+        if self.refresh:
 
+            # trigger a refresh of the M3U accounts
+            print( "Triggering M3U account refresh..." )
+            self._trigger_refresh( )
+
+            # wait a little bit for it to finish
+            print( "Waiting for M3U refresh to complete..." )
+            time.sleep( 10 )
+            print( "M3U refresh complete, fetching streams..." )
+            
         # give it a shot
         try:
 

@@ -29,14 +29,14 @@ def main( ):
         if args.reconfigure:
 
             # we are, so make sure we are setting up what we need for it
-            endpoint, username, password = prompt_for_config( overwrite=True )
+            endpoint, username, password, normalizer = prompt_for_config( overwrite=True )
         
         # nope
         else:
 
             # grab the config, either from the saved file, or the arguments passed
-            endpoint, username, password = get_config(
-                use_args = ( args.endpoint, args.username, args.password ) if any( [args.endpoint, args.username, args.password] ) else None
+            endpoint, username, password, normalizer = get_config(
+                use_args = ( args.endpoint, args.username, args.password, args.normalizer ) if any( [args.endpoint, args.username, args.password, args.normalizer] ) else None
             )
 
         # looks like we're missing something...
@@ -44,7 +44,7 @@ def main( ):
             raise ValueError( "Missing required configuration parameters" )
 
         # initialize the main class
-        api = DCHG_Main( endpoint, username, password )
+        api = DCHG_Main( endpoint, username, password, normalizer, args.refresh )
         print( "Starting channel creation..." )
         
         # create/update the channels
