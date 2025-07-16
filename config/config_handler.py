@@ -2,9 +2,10 @@ import os
 import configparser
 from typing import Tuple, Optional
 from getpass import getpass
+from pathlib import Path
 
 # global for the config file
-CONFIG_FILE = "/home/.dgcs_conf"
+CONFIG_FILE = Path.home( ) / ".config" / ".dgcs_conf"
 
 # read the config file
 def read_config( ) -> Tuple[str, str, str, str]:
@@ -87,7 +88,7 @@ def get_config( use_args: Optional[Tuple[str, str, str, str]] = None ) -> Tuple[
     endpoint, username, password, normalizer = read_config( )
     
     # if they're all there
-    if all( [endpoint, username, password, normalizer] ):
+    if all( [endpoint, username, password] ):
         
         # return the config
         return endpoint, username, password, normalizer
