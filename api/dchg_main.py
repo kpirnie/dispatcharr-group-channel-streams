@@ -146,25 +146,47 @@ class DCHG_Main:
         # give it a shot
         try:
 
-            # setup the response from the API
-            response = requests.get(
-                f"{self.base_url}/api/channels/streams/?page_size=2500", # for me, this is big enough to get them all
-                headers=self.auth_headers,
-                timeout=30
-            )
+            # hold all of the streams
+            all_streams = []
 
-            # make sure we're setup to throw an actual error on an error status
-            response.raise_for_status( )
+            # start with the first page
+            page = 1
 
-            # hold the data
-            data = response.json( )
+            # loop while we have a page to fetch
+            while True:
 
-            # if we don't have results in the data
-            if 'results' not in data:
-                raise ValueError( "API response missing 'results' field" )
-            
-            # return the results
-            return data['results']
+                # build the page url against our own base url
+                url = f"{self.base_url}/api/channels/streams/?page_size=2500&page={page}"
+
+                # setup the response from the API
+                response = requests.get(
+                    url,
+                    headers=self.auth_headers,
+                    timeout=30
+                )
+
+                # make sure we're setup to throw an actual error on an error status
+                response.raise_for_status( )
+
+                # hold the data
+                data = response.json( )
+
+                # if we don't have results in the data
+                if 'results' not in data:
+                    raise ValueError( "API response missing 'results' field" )
+
+                # append this pages results
+                all_streams.extend( data['results'] )
+
+                # if there's no next page, we're done
+                if not data.get( 'next' ):
+                    break
+
+                # otherwise, move to the next page
+                page += 1
+
+            # return the full set
+            return all_streams
         
         # whoopsie...
         except requests.exceptions.RequestException as e:
@@ -186,8 +208,11 @@ class DCHG_Main:
             # make sure we're setup to throw an actual error on an error status
             response.raise_for_status( )
 
-            # return the json response
-            return response.json( )
+            # hold the data
+            data = response.json( )
+
+            # if the response is paginated, return the results, otherwise it's already a list
+            return data['results'] if isinstance( data, dict ) else data
         
         # whoopsie...
         except requests.exceptions.RequestException as e:
@@ -339,46 +364,37 @@ class DCHG_Main:
         print( f"{action} channel: {channel_name}" )
         print( f"{len(streams)} Streams" )
 
-    # prune stale streams from the existing channels
+    # prune stale streams from dispatcharr entirely
     def _prune_stale_streams( self, channels: List[Dict[str, Any]], streams: List[Dict[str, Any]] ) -> None:
 
-        # hold a set of all currently valid stream ids
-        valid_ids = { stream['id'] for stream in streams if isinstance( stream, dict ) and 'id' in stream }
+        # hold the ids of all stale streams
+        stale_ids = [stream['id'] for stream in streams if isinstance( stream, dict ) and stream.get( 'is_stale', False )]
 
-        # loop over the existing channels
-        for channel in ( channels or [] ):
+        # nothing stale, move along
+        if not stale_ids:
+            print( "No stale streams found" )
+            return
 
-            # grab the channels currently assigned stream ids
-            current_ids = channel.get( 'streams', [] ) or []
+        # give it a shot
+        try:
 
-            # filter out the stale ones
-            kept_ids = [sid for sid in current_ids if sid in valid_ids]
+            # bulk delete the stale streams
+            response = requests.delete(
+                f"{self.base_url}/api/channels/streams/bulk-delete/",
+                json={ 'stream_ids': stale_ids },
+                headers=self.auth_headers,
+                timeout=30
+            )
 
-            # nothing stale, move along
-            if len( kept_ids ) == len( current_ids ):
-                continue
+            # make sure we're setup to throw an actual error on an error status
+            response.raise_for_status( )
 
-            # give it a shot
-            try:
+            # log/print what we pruned
+            print( f"{len(stale_ids)} Stale Streams Deleted" )
 
-                # patch the channel with only the valid streams
-                response = requests.patch(
-                    f"{self.base_url}/api/channels/channels/{channel['id']}/",
-                    json={ 'streams': kept_ids },
-                    headers=self.auth_headers,
-                    timeout=30
-                )
-
-                # make sure we're setup to throw an actual error on an error status
-                response.raise_for_status( )
-
-                # log/print what we pruned
-                print( f"Pruned channel: {channel.get( 'name' )}" )
-                print( f"{len(current_ids) - len(kept_ids)} Stale Streams Removed" )
-
-            # whoopsie...
-            except requests.exceptions.RequestException as e:
-                self._exception( e, f"Failed to prune channel {channel.get( 'name' )}" )
+        # whoopsie...
+        except requests.exceptions.RequestException as e:
+            self._exception( e, "Failed to bulk delete stale streams" )
 
     # run the channel creator/updater
     def create_channels( self ) -> List[Dict[str, Any]]:
@@ -396,13 +412,16 @@ class DCHG_Main:
             channels = self._get_channels( )
             print( f"Found {len(channels)} channels" )
 
-            # setup and hold the grouped/sorted channels
-            channel_groups = self._group_and_sort_streams( streams )
-
             # if we're set to prune, remove stale streams from the channels first
             if self.prune:
                 print( "Pruning stale streams..." )
                 self._prune_stale_streams( channels, streams )
+
+                # filter the stale streams out so grouping doesn't re-add them
+                streams = [stream for stream in streams if not stream.get( 'is_stale', False )]
+
+            # setup and hold the grouped/sorted channels
+            channel_groups = self._group_and_sort_streams( streams )
 
             # hold the results
             results = []
