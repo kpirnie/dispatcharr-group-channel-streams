@@ -10,7 +10,7 @@ import re
 class DCHG_Main:
 
     # fire it up!
-    def __init__(self, base_url: str, username: str, password: str, normalizer: str, refresh: bool = False):
+    def __init__(self, base_url: str, username: str, password: str, normalizer: str, refresh: bool = False, prune: bool = False):
         
         # setup the internals
         self.base_url = base_url.rstrip( '/' )
@@ -21,6 +21,7 @@ class DCHG_Main:
         self._auth_headers: Optional[Dict[str, str]] = None
         self.max_retries = 3
         self.retry_delay = 5  # seconds
+        self.prune = prune
 
     # setup a property to hold our authentication headers
     @property
@@ -338,6 +339,47 @@ class DCHG_Main:
         print( f"{action} channel: {channel_name}" )
         print( f"{len(streams)} Streams" )
 
+    # prune stale streams from the existing channels
+    def _prune_stale_streams( self, channels: List[Dict[str, Any]], streams: List[Dict[str, Any]] ) -> None:
+
+        # hold a set of all currently valid stream ids
+        valid_ids = { stream['id'] for stream in streams if isinstance( stream, dict ) and 'id' in stream }
+
+        # loop over the existing channels
+        for channel in ( channels or [] ):
+
+            # grab the channels currently assigned stream ids
+            current_ids = channel.get( 'streams', [] ) or []
+
+            # filter out the stale ones
+            kept_ids = [sid for sid in current_ids if sid in valid_ids]
+
+            # nothing stale, move along
+            if len( kept_ids ) == len( current_ids ):
+                continue
+
+            # give it a shot
+            try:
+
+                # patch the channel with only the valid streams
+                response = requests.patch(
+                    f"{self.base_url}/api/channels/channels/{channel['id']}/",
+                    json={ 'streams': kept_ids },
+                    headers=self.auth_headers,
+                    timeout=30
+                )
+
+                # make sure we're setup to throw an actual error on an error status
+                response.raise_for_status( )
+
+                # log/print what we pruned
+                print( f"Pruned channel: {channel.get( 'name' )}" )
+                print( f"{len(current_ids) - len(kept_ids)} Stale Streams Removed" )
+
+            # whoopsie...
+            except requests.exceptions.RequestException as e:
+                self._exception( e, f"Failed to prune channel {channel.get( 'name' )}" )
+
     # run the channel creator/updater
     def create_channels( self ) -> List[Dict[str, Any]]:
 
@@ -356,6 +398,11 @@ class DCHG_Main:
 
             # setup and hold the grouped/sorted channels
             channel_groups = self._group_and_sort_streams( streams )
+
+            # if we're set to prune, remove stale streams from the channels first
+            if self.prune:
+                print( "Pruning stale streams..." )
+                self._prune_stale_streams( channels, streams )
 
             # hold the results
             results = []

@@ -44,7 +44,7 @@ def main( ):
             raise ValueError( "Missing required configuration parameters" )
 
         # initialize the main class
-        api = DCHG_Main( endpoint, username, password, normalizer, args.refresh )
+        api = DCHG_Main( endpoint, username, password, normalizer, args.refresh, args.prune )
         print( "Starting channel creation..." )
         
         # create/update the channels

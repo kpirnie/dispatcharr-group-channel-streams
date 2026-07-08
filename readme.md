@@ -1,5 +1,11 @@
 # Dispatcharr Group Channel Streams
 
+[![GitHub Issues](https://img.shields.io/github/issues/kpirnie/dispatcharr-group-channel-streams?style=for-the-badge&logo=github&color=006400&logoColor=white&labelColor=000)](https://github.com/kpirnie/dispatcharr-group-channel-streamsissues)
+[![Last Commit](https://img.shields.io/github/last-commit/kpirnie/dispatcharr-group-channel-streams?style=for-the-badge&labelColor=000)](https://github.com/kpirnie/dispatcharr-group-channel-streams/commits/main)
+[![License: MIT](https://img.shields.io/badge/License-MIT-orange.svg?style=for-the-badge&logo=opensourceinitiative&logoColor=white&labelColor=000)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white&style=for-the-badge&labelColor=000)](https://python.org)
+[![Kevin Pirnie](https://img.shields.io/badge/-KevinPirnie.com-000d2d?style=for-the-badge&labelColor=000&logoColor=white&logo=data:image/svg%2Bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIxLjgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+CiAgPGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiLz4KICA8ZWxsaXBzZSBjeD0iMTIiIGN5PSIxMiIgcng9IjQuNSIgcnk9IjEwIi8+CiAgPGxpbmUgeDE9IjIiIHkxPSIxMiIgeDI9IjIyIiB5Mj0iMTIiLz4KICA8bGluZSB4MT0iNC41IiB5MT0iNi41IiB4Mj0iMTkuNSIgeTI9IjYuNSIvPgogIDxsaW5lIHgxPSI0LjUiIHkxPSIxNy41IiB4Mj0iMTkuNSIgeTI9IjE3LjUiLz4KPC9zdmc+Cg==)](https://kevinpirnie.com/)
+
 A Python tool for automatically grouping and organizing streaming channels in your Dispatcharr instance. This tool fetches all available streams from your Dispatcharr API, intelligently groups them by channel name, and creates or updates channel entries with multiple stream sources for redundancy and quality options.
 
 ## What it Does
@@ -19,6 +25,7 @@ A Python tool for automatically grouping and organizing streaming channels in yo
 - **Stream Redundancy**: Each channel can have multiple stream sources for failover
 - **Name Normalization**: Remove unwanted suffixes like "HD", "SD", etc. using regex
 - **M3U Refresh**: Optionally refresh all M3U sources before processing
+- **Stale Stream Pruning**: Optionally remove streams that no longer exist from your grouped channels
 - **Configuration Management**: Save settings for easy reuse
 - **Retry Logic**: Built-in retry mechanisms for API calls
 - **Progress Tracking**: Clear feedback on operations being performed
@@ -81,6 +88,9 @@ python3 main.py
 
 # Run with M3U refresh (slower but ensures latest data)
 python3 main.py --refresh
+
+# Run with stale stream pruning
+python3 main.py --prune
 ```
 
 ### Command Line Arguments
@@ -101,6 +111,9 @@ python3 main.py --refresh
 
 # Reconfigure the application (prompts for new settings)
 python3 main.py --reconfigure
+
+# Remove stale streams from grouped channels before processing
+python3 main.py --prune
 ```
 
 ### All Available Arguments
@@ -113,6 +126,7 @@ python3 main.py --reconfigure
 | `--normalizer` | Value | Regex pattern to normalize channel names |
 | `--refresh` | Flag | Refresh all M3U sources before processing |
 | `--reconfigure` | Flag | Force reconfiguration of saved settings |
+| `--prune` | Flag | Remove stale streams from grouped channels before processing |
 
 ## Channel Name Normalization
 
@@ -151,9 +165,10 @@ NORMALIZER = \s(HD|SD)$
 2. **Stream Fetching**: Retrieves all available streams from all M3U sources
 3. **M3U Refresh** (optional): Triggers refresh of M3U sources for latest data
 4. **Name Normalization**: Applies regex pattern to clean channel names
-5. **Grouping**: Groups streams with matching normalized names
-6. **Channel Management**: Creates new channels or updates existing ones with grouped streams
-7. **Redundancy**: Each channel gets all matching streams as backup sources
+5. **Stale Stream Pruning** (optional): Removes stream IDs that no longer exist from existing channels
+6. **Grouping**: Groups streams with matching normalized names
+7. **Channel Management**: Creates new channels or updates existing ones with grouped streams
+8. **Redundancy**: Each channel gets all matching streams as backup sources
 
 ## Example Output
 
@@ -166,6 +181,9 @@ Fetching streams...
 Found 1247 streams
 Fetching channels...
 Found 89 channels
+Pruning stale streams...
+Pruned channel: ESPN
+2 Stale Streams Removed
 Updated channel: ESPN
 4 Streams
 Created channel: Discovery Channel  
@@ -206,4 +224,4 @@ Issues and pull requests are welcome. Please ensure any changes maintain backwar
 
 ## License
 
-This project is provided as-is for personal and educational use.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
