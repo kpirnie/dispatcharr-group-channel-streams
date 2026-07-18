@@ -460,3 +460,108 @@ class DCHG_Main:
         except Exception as e:
             print( f"Error in create_channels: {str(e)}" )
             raise
+
+    # export the channels to stdout
+    def export_channels( self ) -> None:
+
+        # give it a shot
+        try:
+
+            # grab all existing channels
+            channels = self._get_channels( )
+
+            # print the header row
+            print( '"Channel Name","tvg-id"' )
+
+            # loop over the channels sorted by name
+            for channel in sorted( channels, key=lambda c: str( c.get( 'name', '' ) ).lower( ) ):
+
+                # quote-wrap and escape the fields
+                name = str( channel.get( 'name', '' ) ).replace( '"', '""' )
+                tvg = str( channel.get( 'tvg_id', '' ) or '' ).replace( '"', '""' )
+
+                # print the comma delimited row
+                print( f'"{name}","{tvg}"' )
+
+        # whoopsie...
+        except Exception as e:
+            print( f"Error in export_channels: {str(e)}" )
+            raise
+
+    # get all the epg data records
+    def _get_epg_data( self ) -> List[Dict[str, Any]]:
+
+        # let's give it a shot
+        try:
+
+            # hold the response
+            response = requests.get(
+                f"{self.base_url}/api/epg/epgdata/?page_size=2500",
+                headers=self.auth_headers,
+                timeout=30
+            )
+
+            # make sure we're setup to throw an actual error on an error status
+            response.raise_for_status( )
+
+            # hold the data
+            data = response.json( )
+
+            # if the response is paginated, return the results, otherwise it's already a list
+            return data['results'] if isinstance( data, dict ) else data
+
+        # whoopsie...
+        except requests.exceptions.RequestException as e:
+            self._exception( e, "Failed to fetch EPG data" )
+
+    # match channel tvg-ids to their mapped epg data tvg-ids
+    def match_epg( self ) -> None:
+
+        # give it a shot
+        try:
+
+            # grab all existing channels
+            print( "Fetching channels..." )
+            channels = self._get_channels( )
+            print( f"Found {len(channels)} channels" )
+
+            # grab all the epg data and map it by id
+            print( "Fetching EPG data..." )
+            epg_map = { epg['id']: epg.get( 'tvg_id' ) for epg in self._get_epg_data( ) }
+            print( f"Found {len(epg_map)} EPG records" )
+
+            # hold the update count
+            updated = 0
+
+            # loop over the channels
+            for channel in channels:
+
+                # grab the mapped epg tvg-id if there is one
+                epg_tvg_id = epg_map.get( channel.get( 'epg_data_id' ) )
+
+                # skip if there's no mapping, no epg tvg-id, or it already matches
+                if not epg_tvg_id or channel.get( 'tvg_id' ) == epg_tvg_id:
+                    continue
+
+                # patch the channels tvg-id
+                response = requests.patch(
+                    f"{self.base_url}/api/channels/channels/{channel['id']}/",
+                    json={ 'tvg_id': epg_tvg_id },
+                    headers=self.auth_headers,
+                    timeout=30
+                )
+
+                # make sure we're setup to throw an actual error on an error status
+                response.raise_for_status( )
+
+                # log/print the update
+                print( f"Updated {channel.get( 'name' )}: {channel.get( 'tvg_id' )} -> {epg_tvg_id}" )
+                updated += 1
+
+            # log/print the total
+            print( f"{updated} Channels Updated" )
+
+        # whoopsie...
+        except Exception as e:
+            print( f"Error in match_epg: {str(e)}" )
+            raise

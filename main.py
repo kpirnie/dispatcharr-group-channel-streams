@@ -45,8 +45,25 @@ def main( ):
 
         # initialize the main class
         api = DCHG_Main( endpoint, username, password, normalizer, args.refresh, args.prune )
+
+        # check if we're renumbering
+        if args.renumber:
+            print("Previewing channel renumbering...")
+            api.preview_renumber()
+            return
+
+        # check if we're exporting
+        if args.export:
+            api.export_channels( )
+            return
+
+        # check if we're matching epg tvg-ids
+        if args.match_epg:
+            api.match_epg( )
+            return
+
         print( "Starting channel creation..." )
-        
+
         # create/update the channels
         results = api.create_channels( )
         print( f"Successfully processed {len(results)} channels" )
