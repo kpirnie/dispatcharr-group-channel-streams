@@ -48,8 +48,12 @@ def main( ):
 
         # check if we're renumbering
         if args.renumber:
-            print("Previewing channel renumbering...")
-            api.preview_renumber()
+            api.renumber_channels( )
+            return
+
+        # check if we're reordering channel streams
+        if args.reorder_streams:
+            api.reorder_streams( )
             return
 
         # check if we're exporting

@@ -18,6 +18,7 @@ class Args:
         parser.add_argument( '--export', action='store_true', help='Export channel names and tvg-ids to stdout' )
         parser.add_argument( '--match-epg', action='store_true', help='Update channel tvg-ids from their mapped EPG data' )
         parser.add_argument( '--renumber', action='store_true', help='Channel renumbering' )
+        parser.add_argument( '--reorder-streams', action='store_true', help='Reorder each channels streams by stream name' )
 
         # return the parsed arguments
         return parser.parse_args( )

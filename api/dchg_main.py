@@ -514,6 +514,32 @@ class DCHG_Main:
         except requests.exceptions.RequestException as e:
             self._exception( e, "Failed to fetch EPG data" )
 
+    # get all the m3u accounts
+    def _get_m3u_accounts( self ) -> List[Dict[str, Any]]:
+
+        # let's give it a shot
+        try:
+
+            # hold the response
+            response = requests.get(
+                f"{self.base_url}/api/m3u/accounts/",
+                headers=self.auth_headers,
+                timeout=30
+            )
+
+            # make sure we're setup to throw an actual error on an error status
+            response.raise_for_status( )
+
+            # hold the data
+            data = response.json( )
+
+            # if the response is paginated, return the results, otherwise it's already a list
+            return data['results'] if isinstance( data, dict ) else data
+
+        # whoopsie...
+        except requests.exceptions.RequestException as e:
+            self._exception( e, "Failed to fetch M3U accounts" )
+
     # match channel tvg-ids to their mapped epg data tvg-ids
     def match_epg( self ) -> None:
 
@@ -564,4 +590,122 @@ class DCHG_Main:
         # whoopsie...
         except Exception as e:
             print( f"Error in match_epg: {str(e)}" )
+            raise
+
+    # renumber the channels sequentially by name
+    def renumber_channels( self ) -> None:
+
+        # give it a shot
+        try:
+
+            # grab all existing channels
+            print( "Fetching channels..." )
+            channels = self._get_channels( )
+            print( f"Found {len(channels)} channels" )
+
+            # sort them by their name
+            channels = sorted( channels, key=lambda c: str( c.get( 'name', '' ) ).lower( ) )
+
+            # hold the update count
+            updated = 0
+
+            # loop over the channels, numbering them sequentially
+            for number, channel in enumerate( channels, start=1 ):
+
+                # skip it if it's already numbered correctly
+                if channel.get( 'channel_number' ) == number:
+                    continue
+
+                # patch the channels number
+                response = requests.patch(
+                    f"{self.base_url}/api/channels/channels/{channel['id']}/",
+                    json={ 'channel_number': number },
+                    headers=self.auth_headers,
+                    timeout=30
+                )
+
+                # make sure we're setup to throw an actual error on an error status
+                response.raise_for_status( )
+
+                # log/print the update
+                print( f"Renumbered {channel.get( 'name' )}: {channel.get( 'channel_number' )} -> {number}" )
+                updated += 1
+
+            # log/print the total
+            print( f"{updated} Channels Renumbered" )
+
+        # whoopsie...
+        except Exception as e:
+            print( f"Error in renumber_channels: {str(e)}" )
+            raise
+
+    # reorder each channels streams by their m3u account name
+    def reorder_streams( self ) -> None:
+
+        # give it a shot
+        try:
+
+            # grab all existing channels
+            print( "Fetching channels..." )
+            channels = self._get_channels( )
+            print( f"Found {len(channels)} channels" )
+
+            # grab all the m3u accounts and map their names by id
+            print( "Fetching M3U accounts..." )
+            m3u_names = { account['id']: str( account.get( 'name', '' ) ) for account in self._get_m3u_accounts( ) if isinstance( account, dict ) and 'id' in account }
+            print( f"Found {len(m3u_names)} M3U accounts" )
+
+            # grab all streams and map their sort keys by id
+            print( "Fetching streams..." )
+            stream_keys = {
+                stream['id']: (
+                    m3u_names.get( stream.get( 'm3u_account' ), '' ).lower( ),
+                    str( stream.get( 'name', '' ) ).lower( )
+                )
+                for stream in self._get_streams( )
+                if isinstance( stream, dict ) and 'id' in stream
+            }
+            print( f"Found {len(stream_keys)} streams" )
+
+            # hold the update count
+            updated = 0
+
+            # loop over the channels
+            for channel in channels:
+
+                # hold the current stream ids
+                current = channel.get( 'streams' ) or []
+
+                # nothing to reorder here
+                if len( current ) < 2:
+                    continue
+
+                # sort the ids by their m3u account name, then their stream name
+                ordered = sorted( current, key=lambda sid: stream_keys.get( sid, ( '', '' ) ) )
+
+                # already in order, move along
+                if ordered == current:
+                    continue
+
+                # patch the channels stream order
+                response = requests.patch(
+                    f"{self.base_url}/api/channels/channels/{channel['id']}/",
+                    json={ 'streams': ordered },
+                    headers=self.auth_headers,
+                    timeout=30
+                )
+
+                # make sure we're setup to throw an actual error on an error status
+                response.raise_for_status( )
+
+                # log/print the update
+                print( f"Reordered {channel.get( 'name' )}: {len(ordered)} Streams" )
+                updated += 1
+
+            # log/print the total
+            print( f"{updated} Channels Reordered" )
+
+        # whoopsie...
+        except Exception as e:
+            print( f"Error in reorder_streams: {str(e)}" )
             raise
